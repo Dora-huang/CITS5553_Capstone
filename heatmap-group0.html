@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet.heat demo</title>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5.1/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.5.1/leaflet.js"></script>
+    <style>
+        #map { width: 1500px; height: 600px; }
+        body { font: 16px/1.4 "Helvetica Neue", Arial, sans-serif; }
+        .ghbtns { position: relative; top: 4px; margin-left: 5px; }
+        a { color: #0077ff; }
+    </style>
+</head>
+
+<body>
+<p>
+    sample of leaflet_heatmap
+</p>
+<div id="map"></div>
+<script src="D:/DataScience/2020S2/Capstone/leaflet-heat.js"></script>
+
+<!-- heatmap-address -->
+<script src="D:/DataScience/2020S2/Capstone/group0.js"></script>
+<script>
+// Australia
+// var map = L.map('map').setView([39.26, 115.25], 4);
+// perth
+
+var map = L.map('map').setView([-31.95, 115.86], 7); 
+var tiles = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',}).addTo(map);
+
+addressPoints0 = addressPoints0.map(function (p) { return [p[0], p[1]]; });
+
+var heat = L.heatLayer(addressPoints0,
+    {radius: 25,minOpacity:0.8});
+heat.addTo(map);
+</script>
+
+</body>
+
+</html>
