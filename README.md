@@ -1,8 +1,21 @@
 # CITS5553_Capstone
 Capstone project
 
-## section 1: EDA
+Project Leader: Hugh Smithies
 
-## section 2: PCA
+Project title: Identifying geologically plausible populations in whole-rock geochemical
+datasets
 
-## section 3: 
+Project objective: Given a comprehensive geochemical dataset of igneous rocks of
+broadly similar type, from a geographically well-constrained region, and guidelines
+outlining the ‘characteristics’ expected of geologically plausible geochemical
+populations, apply machine learning and other analytical and visualisation techniques to
+group geochemical analyses (i.e. rocks) into potentially related populations.
+
+## Content
+
+### section 1: EDA
+
+### section 2: PCA
+
+### section 3: 
