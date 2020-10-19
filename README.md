@@ -16,6 +16,6 @@ group geochemical analyses (i.e. rocks) into potentially related populations.
 
 ### section 1: EDA
 
-### section 2: PCA
+### section 2: PCA & TSNE
 
 ### section 3: 
