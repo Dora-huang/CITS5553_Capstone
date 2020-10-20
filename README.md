@@ -18,4 +18,4 @@ group geochemical analyses (i.e. rocks) into potentially related populations.
 
 ### section 2: PCA & TSNE
 
-### section 3: 
+### section 3: Statistic analysis
