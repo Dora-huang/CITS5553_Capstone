@@ -16,6 +16,8 @@ group geochemical analyses (i.e. rocks) into potentially related populations.
 
 ### section 1: EDA
 
-### section 2: PCA & TSNE
+### section 2: Hierarchical clustering
 
-### section 3: Statistic analysis
+### section 3: K-means with PCA & TSNE
+
+### section 4: Statistic analysis
