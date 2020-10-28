@@ -1,0 +1,470 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(stats)
+library(ggplot2)
+library(MASS)
+library(car)
+library(flexmix)
+library(dbscan)
+```
+
+```{r}
+working_dir <- function() {
+  loop_counter = 1
+  while (loop_counter == 1) {
+    file_location <- readline(prompt = "Enter directory of CSV file: ")
+    if (dir.exists(file_location)) {
+      loop_counter = loop_counter + 1
+    } else {
+
+    }
+  }
+  return(file_location)
+}
+
+```
+
+```{r}
+sel_columns <- function(col_group_name=NULL, df) {
+  
+  if(!is.null(col_group_name)) { 
+    clnames <- readline(prompt = paste("Enter column names as col1 col2...col x for ", col_group_name, ": ", sep = " "))
+  }
+  else {
+    clnames <- readline(prompt = "Enter column names as col1 col2...col x: ")
+  }
+  vec_clnames <- unlist(strsplit(clnames, " "))
+  print(vec_clnames)
+  print(length(vec_clnames))
+  selected_columns <- df[vec_clnames]
+  return(selected_columns)
+}
+```
+
+```{r}
+file_name <- function(wd) {
+  loop_counter <- 1
+  while (loop_counter == 1) {
+    file_input <- readline(prompt = "Enter CSV file name inc. extension: ")
+    fileincdir <- paste(wd, file_input, sep="/")
+    if (file.exists(fileincdir)) {
+      loop_counter = loop_counter + 1
+    } else {
+      print("invalid file name")
+    }
+  }
+  return(file_input)
+}
+```
+
+# Optimise for quick testing
+
+```{r}
+#Choose directory
+uinp_wd <- "H:/"
+#D:\University\Units\CITS5553 - Capstone\Project files
+
+#Choose file
+uinp_fn <- "data_geochem.csv"
+#data_geochem.csv
+
+
+
+# Read in dataset
+setwd(uinp_wd)
+dataset_raw <- read.csv(uinp_fn, header=T)
+```
+
+```{r}
+cols_to_select <- c("aTiO2_pct","Th_ppm", "Nb_ppm" , "La_ppm" ,  "Zr_ppm" )
+chem_cols <- dataset_raw[, cols_to_select]
+#chem_cols <- sel_columns(df=dataset_raw)
+#, "Zr_ppm", "La_ppm" , "Th_ppm", "Zr_ppm", "Nb_ppm", "Th_ppm", "Ti_r_Nb", "Ti_r_Th", , "Th_r_Nb"
+#Th_ppm Nb_ppm La_ppm aTiO2_pct Zr_ppm
+cols_to_select2 <- c("Dlat", "Dlong")
+ltlg_cols <- dataset_raw[, cols_to_select2]
+#ltlg_cols <- sel_columns(df=dataset_raw)
+#Dlat Dlong
+```
+
+```{r}
+gmm_clusterbase <- function(df, base_col, model_type, k=NULL, c=NULL, thres = NULL) {
+  base_col_index <- which(colnames(df)==base_col)
+  df_out <- data.frame(id = row.names(df))
+  
+    for (comp in 1:(ncol(df))) {
+      if (base_col_index == comp) {
+        comp = comp + 1
+      }else {
+      df_out <- cbind(df_out, df[base_col_index], df[comp])
+      df_test <- data.frame(df[base_col_index], df[comp])
+      df_test <- model_type(df_test, k, c, thres)
+      df_out <- data.frame(df_out, group=df_test)
+      }
+     
+    }
+  #print(head(df_out))
+  scatterplots_f(df_out[,-1])
+  return(df_out[,-1])
+}
+```
+
+```{r}
+scatterplots_f <- function(df) {
+  #df_lessna <- na.omit(df)
+  #print(df)
+  print("entererd func")
+  for (coli in seq(from=1, to=ncol(df), by=3)) {
+    
+    colx <- coli
+    coly <- coli + 1
+    colg <- coli + 2
+    df_colnames <- c(colnames(df))
+    print(df_colnames)
+    df_lessna <- data.frame(df[,colx], df[,coly], df[,colg])
+    df_lessna <- na.omit(df_lessna)
+    print(df_lessna)
+    label_x <- colnames(df[colx])
+    label_y <- colnames(df[coly])
+    label_g <- colnames(df[colg])
+    coli <- coli + 3
+    print("ready")
+    out1 <- ggplot(data = df_lessna, aes(x = df_lessna[,1], y = df_lessna[,2])) + geom_point(aes(color = df_lessna[,3])) + labs(x = label_x, y = label_y, color = label_g)
+    print(out1)
+  }
+}
+```
+
+```{r}
+b_lin_reg <- function(df) {
+  row_ids <- data.frame(orid = row.names(df))
+  df_lessna <- na.omit(df)
+  
+  group <- rep(1, nrow(df_lessna))
+  
+  output_df <- cbind(df_lessna, group) 
+  
+  output_df <- data.frame(output_df[match(row_ids$orid, row.names(output_df)),])
+  
+  return(output_df)
+}
+```
+
+```{r}
+finitemodel_f <- function(df, k) {
+  set.seed(43)
+  row_ids <- data.frame(orid = row.names(df))
+
+  df_lessna <- na.omit(df)
+  df_lessna <- df_lessna
+
+  cor_test <- cor(df_lessna[2], df_lessna[1])
+  
+  if (cor_test > 0 ) {
+    y_trans <- log(df_lessna[,2])
+    #y_trans <- df_lessna[,2]
+  } else {
+    y_trans <- df_lessna[,2]
+    #y_trans <- log(df_lessna[,2])
+  }
+  
+  
+  formula_1 <- as.formula(paste(colnames(df_lessna[2]), colnames(df_lessna[1]), sep="~ "))
+  clustname <- paste(colnames(df_lessna[2]), colnames(df_lessna[1]), sep="_")
+  
+
+  
+  m1 <- flexmix(y_trans ~ df_lessna[,1], data = df_lessna, k = k)
+
+  
+  output_df <- data.frame(id=row.names(df_lessna), clusters(m1))
+  
+  colnames(output_df) <- c("id", clustname)
+  output_df[,2] <-  as.factor(output_df[,2])
+  output_df <- data.frame(output_df[match(row_ids$orid, output_df$id),])
+  rownames(output_df) <- rep(1:nrow(df))
+  return(output_df[,-1])
+}
+```
+
+
+```{r}
+finitemodel_f2 <- function(df, k, c, thres) {
+  set.seed(43)
+  row_ids <- data.frame(orid = row.names(df))
+  
+  df_lessna <- minmax_df_f(df)
+
+  df_lessna <- na.omit(df)
+  df_lessna <- df_lessna
+  
+ 
+  
+  #dbsg <- dbscan(df_lessna, eps = 3, minPts = 600, borderPoints = FALSE)$cluster
+  #df_lessna$group <- dbsg
+  #print(df_lessna)
+  #df_lessna <- df_lessna[df_lessna$group == 1,]
+  #df_lessna <- df_lessna[,-3]
+  #print(df_lessna)
+  
+  
+  outliers1 <- (boxplot(df_lessna[,1], plot = FALSE)$out)
+  z1 <- c(which(df[,1] %in% outliers1))
+  
+  outliers2 <- (boxplot(df_lessna[,2], plot = FALSE)$out)
+  z2 <- c(which(df[,2] %in% outliers2))
+  
+  #df_lessna <- df_lessna[-z1,]
+  #df_lessna <- df_lessna[-z2,]
+  
+  
+  
+
+  cor_test <- cor(df_lessna[2], df_lessna[1])
+  
+  if (cor_test > 0 ) {
+    y_trans <- log(df_lessna[,2])
+    #y_trans <- df_lessna[,2]
+  } else {
+    y_trans <- df_lessna[,2]
+    #y_trans <- log(df_lessna[,2])
+  }
+  
+  #print(ggpairs(df_lessna))
+  
+  formula_1 <- as.formula(paste(colnames(df_lessna[2]), colnames(df_lessna[1]), sep="~ "))
+  clustname <- paste(colnames(df_lessna[2]), colnames(df_lessna[1]), sep="_")
+  
+
+  
+  m1 <- flexmix(y_trans ~ df_lessna[,1], data = df_lessna, k = k)
+
+  
+  output_df <- data.frame(id=row.names(df_lessna), clusters(m1))
+  df_lessna$clusters.m1. <- output_df$clusters.m1.
+  output_df$cortry <-linearreg_f(df_lessna, df_lessna$clusters.m1.)
+  
+
+  output_df$clusters.m1.[!(output_df$cortry > 0.8 | output_df$cortry < 0)] <- NA
+  df_lessna$clusters.m1.[!(output_df$cortry > thres | output_df$cortry < 0)] <- NA
+  output_df <- output_df[,-3]
+
+  
+  df_lessna <- na.omit(df_lessna)
+  df_lessna <- df_lessna[,-3]
+
+  cor_test <- cor(df_lessna[2], df_lessna[1])
+  
+  if (cor_test > 0 ) {
+    y_trans <- log(df_lessna[,2])
+    #y_trans <- df_lessna[,2]
+  } else {
+    y_trans <- df_lessna[,2]
+    #y_trans <- log(df_lessna[,2])
+  }
+  
+  m2 <- flexmix(y_trans ~ df_lessna[,1], data = df_lessna, k = c)
+  output_df <- data.frame(id=row.names(df_lessna), clusters(m2))
+  df_lessna$clusters.m2. <- output_df$clusters.m2.
+  output_df$cortry <-linearreg_f(df_lessna, df_lessna$clusters.m2.)
+  #output_df$clusters.m2.[!(output_df$cortry > 0.1 | output_df$cortry < 0)] <- NA
+  output_df <- output_df[,-3]
+ 
+  print(output_df)
+  
+  colnames(output_df) <- c("id", clustname)
+  output_df[,2] <-  as.factor(output_df[,2])
+  output_df <- data.frame(output_df[match(row_ids$orid, output_df$id),])
+  rownames(output_df) <- rep(1:nrow(df))
+  
+  return(output_df[,-1])
+}
+```
+
+```{r}
+finitemodel_f3 <- function(df, k, c, thres) {
+  set.seed(43)
+  row_ids <- data.frame(orid = row.names(df))
+  
+  df_lessna <- minmax_df_f(df)
+
+  df_lessna <- na.omit(df)
+  df_lessna <- df_lessna
+  #df_lessna <- as.data.frame(df_lessna[1]-mean(df))
+  #print(df_lessna)
+  outliers1 <- (boxplot(df_lessna[,1], plot = FALSE)$out)
+  z1 <- c(which(df[,1] %in% outliers1))
+  
+  outliers2 <- (boxplot(df_lessna[,2], plot = FALSE)$out)
+  z2 <- c(which(df[,2] %in% outliers2))
+  
+  df_lessna <- df_lessna[-z1,]
+  df_lessna <- df_lessna[-z2,]
+  
+  
+  
+
+  cor_test <- cor(df_lessna[2], df_lessna[1])
+  
+  if (cor_test > 0 ) {
+    #y_trans <- log(df_lessna[,2])
+    #y_trans <- df_lessna[,2]
+    y_trans <- sqrt(df_lessna[,2])
+  } else {
+    y_trans <- sqrt(df_lessna[,2])
+    #y_trans <- log(df_lessna[,2])
+  }
+  
+  #print(ggpairs(df_lessna))
+  
+  formula_1 <- as.formula(paste(colnames(df_lessna[2]), colnames(df_lessna[1]), sep="~ "))
+  clustname <- paste(colnames(df_lessna[2]), colnames(df_lessna[1]), sep="_")
+  
+
+  
+  m1 <- flexmix(y_trans ~ df_lessna[,1], data = df_lessna, k = k)
+
+  
+  output_df <- data.frame(id=row.names(df_lessna), clusters(m1))
+  df_lessna$clusters.m1. <- output_df$clusters.m1.
+  output_df$cortry <-linearreg_f(df_lessna, df_lessna$clusters.m1.)
+  
+  print(output_df)
+  #output_df$clusters.m1.[!(output_df$cortry > 0.54 | output_df$cortry < 0)] <- NA
+  output_df <- output_df[,-3]
+  print(output_df)
+  
+  colnames(output_df) <- c("id", clustname)
+  output_df[,2] <-  as.factor(output_df[,2])
+  output_df <- data.frame(output_df[match(row_ids$orid, output_df$id),])
+  rownames(output_df) <- rep(1:nrow(df))
+  
+  return(output_df[,-1])
+}
+```
+
+
+```{r}
+minmax_df_f <-  function(df) {
+  
+df_lessna <- na.omit(df)
+cnames <- colnames(df_lessna)
+row_ids <- data.frame(orid = row.names(df))
+orig_cols <- c(rep(1:dim(df_lessna)[2]))
+id_col <- length(orig_cols)*2 + 1 
+for (i in 1:length(df_lessna)) {
+  scaled_col <- (df_lessna[,i] - min(df_lessna[,i]))/(max(df_lessna[,i]) - min(df_lessna[,i]))
+  df_lessna <- cbind(df_lessna, scaled_col)
+}
+df_lessna$id <- row.names(df_lessna)
+df_lessna <- data.frame(df_lessna[match(row_ids$orid, df_lessna$id),])
+df_lessna <- df_lessna[,-c(orig_cols,id_col)]
+rownames(df_lessna) <- rep(1:nrow(df))
+colnames(df_lessna) <- cnames
+print(df_lessna)
+return(df_lessna)
+
+}
+```
+```{r}
+df_out1 <- minmax_df_f(chem_cols[,c(1,2)])
+```
+```{r}
+df_out1
+```
+
+```{r}
+insertElems <- function(vect, pos, elems) {
+
+l = length(vect)
+  j = 0
+  for (i in 1:length(pos)){
+    if (pos[i]==1)
+      vect = c(elems[j+1], vect)
+    else if (pos[i] == length(vect)+1)
+      vect = c(vect, elems[j+1])
+    else
+      vect = c(vect[1:(pos[i]-1+j)], elems[j+1], vect[(pos[i]+j):(l+j)])
+    j = j+1
+  }
+  return(vect)
+}
+```
+
+```{r}
+linearreg_f <- function(df, group_col) {
+  if (!(nrow(df) == nrow(data.frame(group_col)))) {
+    out <- "inputs must be same length"
+    return(out)
+  }
+  corr_list <- c()
+  
+
+  for (group in 1:nlevels(as.factor(group_col))) {
+    print(group)
+    subgdf <- df[group_col == group,]
+    corr2var <- cor(subgdf[1], subgdf[2])
+    corr_list <- append(corr_list, corr2var)
+    group_col <- ifelse(group == group_col, corr2var, group_col)
+
+    
+  }
+  return(group_col)
+}
+```
+
+
+
+
+```{r}
+df_out1 <- gmm_clusterbase(chem_cols2, "aTiO2_pct", finitemodel_f2, k=3, c=3, thres=0)
+```
+
+```{r}
+sph1 <- gmm_clusterbase(ltlg_cols, "Dlat", finitemodel_f2, k=3, c=3, thres=0)
+```
+
+
+```{r}
+
+outsph1 <- data.frame(ltlg_cols, group=as.factor(sph1$group))
+```
+
+```{r}
+scatterplots_f(outsph1)
+```
+```{r}
+chem_cols2 <- chem_cols[outsph1$group == 2,]
+```
+
+```{r}
+chem_cols2
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

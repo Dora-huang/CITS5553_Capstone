@@ -1,0 +1,347 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# 1.0 FUNCTIONS
+
+## Select Working directory
+
+```{r}
+working_dir <- function() {
+  loop_counter = 1
+  while (loop_counter == 1) {
+    file_location <- readline(prompt = "Enter directory of CSV file: ")
+    if (dir.exists(file_location)) {
+      loop_counter = loop_counter + 1
+    } else {
+
+    }
+  }
+  return(file_location)
+}
+
+```
+
+## Select File name
+
+```{r}
+file_name <- function(wd) {
+  loop_counter = 1
+  while (loop_counter == 1) {
+    file_input <- readline(prompt = "Enter CSV file name inc. extension: ")
+    fileincdir <- paste(wd, file_input, sep="/")
+    if (file.exists(fileincdir)) {
+      loop_counter = loop_counter + 1
+    } else {
+      
+    }
+  }
+  return(file_input)
+}
+```
+
+## Average of 2 columns
+
+```{r}
+avg_2cols <- function(dataset, col1index, col2index) {
+empty_vec <- c()
+for (i in 1:nrow(dataset)) {
+  valueleft <- dataset[i, col1index]
+  valueright <- dataset[i, col2index]
+  if (!is.na(valueleft) & !is.na(valueright)) {
+    valueout <- (valueleft + valueright)/2
+  } 
+  else if (!is.na(valueleft) & is.na(valueright)) {
+    valueout <- valueleft
+  } 
+  else if (is.na(valueleft) & !is.na(valueright)) {
+    valueout <- valueright
+  } 
+  else {
+    valueout <- 0
+    }
+  empty_vec <- append(empty_vec, valueout)
+}
+return(empty_vec)
+}
+```
+
+## Select Columns
+
+```{r}
+sel_columns <- function(col_group_name=NULL, df) {
+  if(!is.null(col_group_name)) { 
+    clnames <- readline(prompt = paste("Enter column names as col1 col2...col x for ", col_group_name, ": ", sep = " "))
+  }
+  else {
+    clnames <- readline(prompt = "Enter column names as col1 col2...col x: ")
+  }
+  vec_clnames <- unlist(strsplit(clnames, " "))
+  print(vec_clnames)
+  print(length(vec_clnames))
+  selected_columns <- df[vec_clnames]
+  return(selected_columns)
+}
+```
+
+```{r}
+empty_col_remover <- function(df) {
+  print("Entered empty col remover")
+  df_new <- df
+  for (i in 1:ncol(df)) {
+    na_count <- sum(is.na(df[, i]))
+    total_rows <- nrow(df[i])
+    if (na_count == total_rows) {
+      print(paste("Variable", colnames(df[i]), "only contains missing values. It will be removed"))
+      df_new <- df_new[, -i]
+    }
+  }
+  return(df_new)
+}
+```
+
+```{r}
+dl_imputer <- function(df) {
+  print("Entered dl imputer")
+  min_col_vec <- c()
+  for (i in 1:ncol(df)) {
+    na_count <- sum(is.na(df[, i]))
+    total_rows <- nrow(df[i])
+    if (na_count == total_rows) {
+      min_col <- as.numeric(readline(prompt = paste("Enter manual detection limit for ", colnames(df[i]), ": " )))
+      min_col_vec <- append(min_col_vec, min_col)
+    } else {
+      min_col <- min(df[,i], na.rm = TRUE)
+      min_col_vec <- append(min_col_vec, min_col)
+    }
+  }
+  print("exited dl imputer")
+  return (min_col_vec)
+}
+
+```
+
+
+```{r}
+f_impute_values <- function(df, imputetype) {
+  "Entered f impute values"
+
+  if (imputetype == "1") {
+    
+    df_imputed[is.na(df)] <- 0
+    
+  } else if (imputetype == "2") {
+    
+    df_imputed <- f_rf_imputer(df)
+    
+  } else if (imputetype == "3") {
+    
+    df_imputed <- f_robcomp_imputer(df)
+    
+  } else if (imputetype == "4") {
+    
+    df_imputed <- median_imputer(df)
+    
+  } else {
+    "Invalid impute type"
+  }
+  return (df_imputed)
+}
+```
+
+```{r}
+f_rf_imputer <- function(df) {
+  library(missForest)
+  df <- empty_col_remover(df)
+  df_new <- missForest(df)$ximp
+  df_new$imputedyn <- ifelse(rowSums(is.na(df)), "imputed", "not imputed")
+  return(df_new)
+}
+```
+
+```{r}
+median_imputer <- function(df) {
+  df <- empty_col_remover(df)
+  df_new <- df
+  for (i in 1:ncol(df_new)) {
+    med_col <- median(df_new[,i], na.rm = TRUE)
+    df_new[i] <- ifelse(is.na(df_new[,i]), med_col, df_new[,i])
+  }
+  df_new$imputedyn <- ifelse(rowSums(is.na(df)), "imputed", "not imputed")
+  return (df_new)
+}
+```
+
+```{r}
+f_robcomp_imputer <- function(df) {
+  print("Entered robcomp imputer")
+  library(robCompositions)
+  df <- empty_col_remover(df)
+  dl <- dl_imputer(df)
+  compdata <- sum(rowSums(df, na.rm=TRUE))/nrow(df)
+  if (compdata == 1) {
+    imp_obj <- impCoda(df, maxit=10, eps=0.5, method="lm", closed=TRUE, init = "KNN", k=5, dl=dl, noise=0.2)
+    #imp_obj <- impAll(df)
+  } else {
+    imp_obj <- impCoda(df, maxit=10, eps=0.5, method="lm", closed=FALSE, init = "KNN", k=5, dl=dl, noise=0.2)
+    #imp_obj <- impAll(df)
+  }
+  df_new <- imp_obj$xImp
+  df_new$imputedyn <- ifelse(rowSums(is.na(df)), "imputed", "not imputed")
+  print("exited robcomp imputer")
+  return(df_new)
+}
+```
+
+```{r}
+f_transform <- function(df) {
+  validate_input = 0
+  uinp_ilr_status = 4
+  while (validate_input == 0) {
+    uinp_impute_type <- readline(prompt = "What method for imputation? Enter number: \n1.replace with zero\n2.random forest imputation\n3.robust imputation\n4.median : ")
+    if (uinp_impute_type == "2" | uinp_impute_type == "3" | uinp_impute_type == "4") {
+      validate_input = validate_input + 1
+    } else if (uinp_impute_type == "1") {
+      validate_input = validate_input + 1
+    } else {
+      "Please enter valid input"
+    }
+  }
+  df_imputed <- f_impute_values(df, uinp_impute_type)
+  return (df_imputed)
+}
+```
+
+```{r}
+f_transform_1 <- function(df) {
+  validate_input2 = 0
+  while (validate_input2 == 0) {
+    uinp_ilr_status <- readline(prompt = "It is strongly recommended you use a log ratio transformation. Please enter number from: \n1.Isometric log ratio\n2.Centered log ratio\n3.Additive Log Ratio\n4. No log ratio")
+    if (uinp_ilr_status == "1" | uinp_ilr_status == "2" | uinp_ilr_status == "3" | uinp_ilr_status == "4") {
+      validate_input2 = validate_input2 + 1
+      } else {
+        "Please enter valid input"
+      }
+  }
+  if (!(uinp_ilr_status == 0)) {
+    print("hibi")
+    df_out <- f_lr_replace(df, uinp_ilr_status)
+  }
+  return(df_out)
+}
+```
+
+```{r}
+f_lr_replace <- function(df, ilrtype) {
+  "Entered f_lr_replace"
+  df_new <- Filter(is.numeric, df)
+  library(compositions)
+  library(robCompositions)
+  avgrowtotal <- sum(rowSums(df_new, na.rm=TRUE))/nrow(df_new)
+  print(avgrowtotal)
+  if (ilrtype == 1) {
+    if (avgrowtotal == 1) {
+      print("hihi")
+      df_ilr <- pivotCoord(df_new)
+    } else {
+      dfcol_comp = acomp(df_new)
+      df_ilr <- pivotCoord(dfcol_comp)
+      df_ilr
+    }
+    
+  } else {
+    "transformation to be added later"
+  }
+  
+  return (df_ilr)
+}
+```
+
+```{r}
+f_kmeans <- function(chem_df, latcol, longcol, k, jitterstatus) {
+  library(ggplot2)
+  run_kmeans <- kmeans(chem_df, centers=k, algorithm = "Hartigan-Wong", nstart=1, iter.max=300)$cluster
+  out_df <- data.frame(latcol, longcol, run_kmeans)
+  if (jitterstatus == "y") {
+    plot1 <- ggplot(data = out_df, aes(x=latcol, y=longcol)) + geom_point(color=run_kmeans, position=position_jitter(width=1,height=.1))
+  } else {
+    plot1 <- ggplot(data = out_df, aes(x=latcol, y=longcol)) + geom_point(color=run_kmeans)
+  }
+  return(plot1)
+}
+```
+
+# 2.0 CONTROL FLOW
+
+```{r}
+#Choose directory
+uinp_wd <- working_dir()
+#D:\University\Units\CITS5553 - Capstone\Project files
+
+
+#Choose file
+uinp_fn <- file_name(uinp_wd)
+#data_geochem.csv
+
+# Read in dataset
+setwd(uinp_wd)
+dataset_raw <- read.csv(uinp_fn, header=T)
+
+```
+
+```{r}
+# Select chemical columns
+chem_cols <- sel_columns(df=dataset_raw)
+#Th_ppm Nb_ppm Ta_ppm Zr_ppm Hf_ppm Y_ppm La_ppm Sm_ppm Gd_ppm Yb_ppm Ni_ppm Cr_ppm Ti_ppm Cd_ppm Rb_ppm
+#aP2O5_pct aK2O_pct aSiO2_pct aTiO2_pct aAl2O3_pct aFe2O3T_pct aMgO_pct aMnO_pct aCaO_pct aNa2O_pct
+#Bi_ppm Sn_ppm Mo_ppm Be_ppm Cs_ppm Ba_ppm Rb_ppm Sr_ppm Pb_ppm Th_ppm U_ppm Nb_ppm Ta_ppm Zr_ppm Hf_ppm Y_ppm Ga_ppm La_ppm Ce_ppm Pr_ppm Nd_ppm Sm_ppm Eu_ppm Gd_ppm Tb_ppm Dy_ppm Ho_ppm Er_ppm Tm_ppm Yb_ppm Lu_ppm Sc_ppm Ni_ppm V_ppm Cd_ppm Cr_ppm Cu_ppm Zn_ppm Sb_ppm As_ppm Ge_ppm Ti_ppm
+#Rb_ppm Cs_ppm Ba_ppm Pb_ppm Sr_ppm Th_ppm U_ppm Zr_ppm Hf_ppm Ti_ppm Nb_ppm Ta_ppm Ce_ppm Pr_ppm Nd_ppm Sm_ppm Eu_ppm Gd_ppm Tb_ppm Dy_ppm Ho_ppm Er_ppm Tm_ppm Yb_ppm Lu_ppm
+
+#Select lat long columns
+ltlg_cols <- sel_columns(df=dataset_raw)
+#Dlat Dlong
+
+#Select depth columns
+depth_cols <- sel_columns(df=dataset_raw)
+#Depth..m..from Depth..m..to
+
+  if (ncol(depth_cols) == 2) {
+    avg_depthcol <- avg_2cols(depth_cols, 1, 2)
+  } else if (ncol(depth_cols) > 2){
+    "kill program"
+    # or request they choose a possible number of columns
+  } else {
+    avg_depthcol <- depth_cols
+  }
+
+# Tell how many missing values there are
+
+print(paste("There are ", sum(is.na(chem_cols)), " missing values. These may cause a problem in analysis."                 ))
+
+imputed_chem_cols <- f_transform(chem_cols)
+ilr_chemcols <- f_transform_1(imputed_chem_cols)
+```
+
+```{r}
+kmeans1 <- kmeans(ilr_chemcols, centers=3, algorithm = "Hartigan-Wong", nstart=1, iter.max=300)$cluster
+groups <- kmeans1$cluster
+kmeans1_df <- data.frame(ltlg_cols$Dlat, ltlg_cols$Dlong, groups)
+ggplot(data = next_df, aes(x=lat, y=long)) + geom_point(color=groups)#, position=position_jitter(width=1,height=.1))
+ggplot(data = next_df, aes(x=lat, y=long)) + geom_point(color=groups)#, position=position_jitter(width=1,height=.1))
+
+```
+
+
+
+
+```{r}
+(f_kmeans(ilr_chemcols, ltlg_cols$Dlat, ltlg_cols$Dlong, 10, "y"))
+```
+
+
+
+
+
+
+
