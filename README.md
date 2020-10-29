@@ -1,5 +1,5 @@
 # CITS5553_Capstone
-Capstone project
+Capstone project's code
 
 Project Leader: Hugh Smithies
 
@@ -14,10 +14,8 @@ group geochemical analyses (i.e. rocks) into potentially related populations.
 
 ## Content
 
-### section 1: EDA
+### section 1: EDA & Hierarchical clustering (Helena Morton)
 
-### section 2: Hierarchical clustering
+### section 2: K-means with PCA & TSNE (Xiaoyan Huang)
 
-### section 3: K-means with PCA & TSNE
-
-### section 4: Statistic analysis
+### section 3: Statistic analysis (Matthew Westhoff)

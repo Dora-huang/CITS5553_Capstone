@@ -1,0 +1,632 @@
+---
+title: "Capstone data science project"
+subtitle: "Geochemical populations with the WA Department of Mines, Industry, Safety and Regulation"
+author: "Helena Morton (22598448)"
+output:
+  html_notebook: 
+    toc: true
+    theme: united
+  pdf_document: 
+    toc: false
+    number_sections: no
+  html_document: 
+    toc: true
+  word_document: 
+    toc: true
+date: '`r format(Sys.time(), "%d %B %Y, %H:%M ")`'
+---
+
+> The following notebook is an exploratory data analysis (EDA) and hierarchial clustering of the data provided for our Capstone data science project. The project: 
+
+# Notebook preamble
+
+```{r Document preamble, warning=FALSE, results='hide',message=FALSE,include=FALSE}
+
+# List of packages required
+list_of_packages <- c("ggplot2", "tidyverse","ggpubr","dplyr","lubridate","Matrix","factoextra","graphics","mvdalab","pls","itertools","corrplot")
+
+# install packages for new users
+new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)){
+install.packages(new_packages)
+}
+
+# import/load libraries
+suppressPackageStartupMessages(lapply(c(list_of_packages),library, character.only = TRUE))
+```
+
+> The following notebook is an exploratory data analysis (EDA) and hierarchial clustering of the data provided for our Capstone data science project. The project: 
+
+> DATA NOTES:
+
+> * There are $n$ = 1351 (was expecting 600) and $p$ (variable) = 95. 
+> * Of which $n_{basalt}$ = 1051 are and $n_{dolerite}$ = 300
+> * Will work will both `Rocktypes`
+
+> * Need to decide which variables/columns ($p$) are needed/essential since dataset is large
+> * Check for missing values (NA's) and decide what to do with these samples
+> * Apparently the NA's could also be so low that they are undetected by the analysis
+
+> * $n$ = 6 variables that are 'chr'data type, $n$ = 89 that are 'num' data type
+> * consider data normalisation for num dt?
+> * What to do about outliers?
+
+# Import & load dataset
+
+```{r import data}
+# import/load data
+geo_data <- read.csv("kalgoolie-geochemistry.csv") # name of dataset
+# list the columns in dataset
+colnames(geo_data)
+cat('\nThere are',nrow(geo_data),'rows/ oberservations (n)','and',ncol(geo_data),'columns/ variables (p) in this dataset\n\n')
+```
+
+# Exploratory data analysis (EDA) 
+
+> Exploration of data, cleaning and transformations
+
+```{r }
+geo_columns <- cbind(seq(1,ncol(geo_data),1),names(geo_data)) %>% `colnames<-`(c("Number","Names"))
+as.table(geo_columns)
+
+geo_columns[,2]
+```
+
+
+Number Names                  
+  1      ï..SampleID            
+  2      Rocktype               
+  3      Source                 
+  4      Publication1           
+  5      Publication2           
+  6      Project                
+  7      Dlat                   
+  8      Dlong                  
+  9      Sample_type            
+  10     Core                   
+  11     Depth_m_from           
+L 12     Depth_m_to             
+M  13     Description_Other_notes
+N  14     X                      
+O  15     SiO2_pct               
+P  16     TiO2_pct               
+Q  17     Al2O3_pct              
+R  18     Fe2O3T_pct             
+S  19     MgO_pct                
+T  20     MnO_pct                
+U  21     CaO_pct                
+V  22     Na2O_pct               
+W  23     K2O_pct                
+X  24     P2O5_pct               
+Y  25     SO3_pct                
+Z  26     LOI_pct                
+A1 27     Cl_pct                 
+B1 28     Total_calc             
+C1 29     Total_LOI              
+D1 30     Total_LOI_SO3          
+E1 31     aSiO2_pct              
+F1 32     aTiO2_pct              
+G1 33     aAl2O3_pct             
+H1 34     aFe2O3T_pct            
+I1 35     aMgO_pct               
+J1 36     aMnO_pct               
+K1 37     aCaO_pct               
+L1 38     aNa2O_pct              
+M1 39     aK2O_pct               
+N1 40     aP2O5_pct              
+O1 41     aTotal                 
+P1 42     FeOT_pct               
+Q1 43     Mg                     
+R1 44     Na20_K2O               
+S1 45     K2O_Na2O               
+T1 46     ASI                    
+U1 47     Eu_Eu                  
+V1 48     Au_ppb                 
+W1 49     Pt_ppb                 
+X1 50     Pd_ppb                 
+Y1 51     Re_ppm                 
+Z1 52     Ag_ppm                 
+A2 53     F_ppm                  
+B2 54     Bi_ppm                 
+C2 55     Sn_ppm                 
+D2 56     Mo_ppm                 
+E2 57     Be_ppm                 
+F2 58     Cs_ppm                 
+G2 59     Ba_ppm                 
+H2 60     Rb_ppm                 
+I2 61     Sr_ppm                 
+J2 62     Pb_ppm                 
+K2 63     Th_ppm                 
+L2 64     U_ppm                  
+M2 65     Nb_ppm                 
+N2 66     Ta_ppm                 
+O2 67     Zr_ppm                 
+P2 68     Hf_ppm                 
+Q2 69     Y_ppm                  
+R2 70     Ga_ppm                 
+S2 71     La_ppm                 
+T2 72     Ce_ppm                 
+U2 73     Pr_ppm                 
+V2 74     Nd_ppm                 
+W2 75     Sm_ppm                 
+X2 76     Eu_ppm                 
+Y2 77     Gd_ppm                 
+Z2 78     Tb_ppm                 
+A3 79     Dy_ppm                 
+B3 80     Ho_ppm                 
+C3 81     Er_ppm                 
+D3 82     Tm_ppm                 
+E3 83     Yb_ppm                 
+F3 84     Lu_ppm                 
+G3 85     Sc_ppm                 
+H3 86     Ni_ppm                 
+I3 87     V_ppm                  
+J3 88     Cd_ppm                 
+K3 89     Cr_ppm                 
+L3 90     Cu_ppm                 
+M3 91     Zn_ppm                 
+N3 92     Sb_ppm                 
+O3 93     As_ppm                 
+P3 94     Ge_ppm                 
+Q3 95     Ti_ppm      
+
+```{r reduce DF}
+# chosen columns to remove
+remove_cols <- c(1:26,28:30,41,46,47)
+remove_cols1 <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
+          17,18,19,20,21,22,23,24,25,26,28,29,30,41,46,47)
+
+# could use this to remove columns based on number
+#new_geo <- geo[-c(remove_cols)]
+
+# Remove columns from dataset
+reduce_geo <- geo_columns[,1] %in% remove_cols
+
+reduce <- cbind(reduce_geo,geo_columns)  %>% 
+  as_tibble(c.name_repair='unique') %>% 
+  filter(reduce_geo==FALSE)
+
+# New dataframe
+geo_chemical_data <- geo_data[colnames(geo_data) %in% reduce$Names]
+
+# all the column's removed
+cat("You want to remove the following columns:\n\n")
+removed <- cbind(reduce_geo, geo_columns)  %>% 
+  as_tibble(c.name_repair='unique') %>% 
+  filter(reduce_geo==TRUE)
+as.matrix(removed[-1])
+
+# selected columns
+cat("\nYou want to keep the following columns:\n\n")
+as.matrix(names(geo_chemical_data))
+# New Dataset's dimensions
+cat('\n\nThere are',nrow(geo_chemical_data),'rows/ oberservations (n)','and',ncol(geo_chemical_data),'columns/ variables (p) in this dataset\n\n')
+```
+
+Since there are many NA's/ missing values - although it is noted that these could be measurements that are too low to be detected by the analytical machinery - they are replaced with zeros's here instead of random numbers from the distribution.
+
+```{r check for missing values}
+# The n of Na's in df
+message("Missing values detection in new dataframe (DF)\n")
+sapply(geo_chemical_data,function(x) sum((is.na(x))))
+```
+
+```{r data transformations}
+# fill NA's with zero
+geochemistry_zeros <- geo_chemical_data
+geochemistry_zeros[is.na(geochemistry_zeros)] <- 0
+# remove NA's
+geochemistry_omit_na <- na.omit(geo_chemical_data)
+# log transformation of data
+geochemistry_omit_na <- geo_chemical_data %>% na.omit %>% log10
+# I for compositional data like geochemistry
+ilr(geo_chemical_data)
+
+ilr( x , V = ilrBase(x) ,...)
+          ilrInv( z , V = ilrBase(z=z),..., orig=gsi.orig(z))
+
+```
+
+
+
+```{r}
+sapply(geo_chemical,function(x) sum((is.na(x))))
+```
+
+
+```{r}
+# Plots of variables
+for (variable in geo_chemical_data){
+  element_names <- names(geo_chemical_data)[variable]
+  par(mfrow=c(2,2))
+  plot(variable,col="seagreen",ylab = element_names[+1], main = element_names[+1], xlab = "frequency")
+  boxplot(variable, horizontal = F, col = "steel blue",border = "brown",notch = TRUE, main=element_names[+1], ylab= "measurement")
+  hist(variable,col="seagreen", main = element_names[+1], xlab= "measurement")
+}
+```
+
+
+```{r scatter plots of the variables}
+
+ggplot() + geom_point(aes(x=aTiO2_pct,y=Th_ppm), data = geo_chemical_data) + geom_smooth()
+
+ggplot() + geom_point(aes(x=aTiO2_pct,y=La_ppm), data = geo_chemical_data) + geom_smooth()
+
+ggplot() + geom_point(aes(x=aTiO2_pct,y=Zr_ppm)) + geom_smooth()
+
+ggplot() + geom_point(aes(x=Th_ppm,y=Nb_ppm)) + geom_smooth()
+
+ggplot() + geom_point(aes(x=Zr_ppm,y=La_ppm), data = geo_chemical_data) + geom_smooth()
+
+ggplot() + geom_point(aes(x=Th_ppm,y=Zr_ppm), data = geo_chemical_data) + geom_smooth()
+
+ggplot() + geom_point(aes(x=Mg,y=La_ppm), data = geo_chemical_data) + geom_smooth()
+
+ggplot() + geom_point(aes(x=Mg,y=aAl2O3_pct), ddata = geo_chemical_data) + geom_smooth()
+
+ggplot() + geom_point() + geom_smooth()
+
+#ggplot(new_DF, aes(x=Mg,y=aTiO3_pct)) + geom_point() + geom_smooth()
+
+ggplot() + geom_point(aes(x=Dlat,y=Dlong)) + geom_smooth()
+```
+
+
+```{r Scatterplot function}
+
+scatter_plot <- function(mydf, myxcol, myycol, mytitle) {
+   ggplot2::ggplot(data = mydf, aes_string(x=reorder({{ myxcol }}, 
+      {{ myycol }}), y= {{ myycol }})) + 
+    geom_point(color = "black", fill="#0072B2") +
+    xlab(colnames(myxcol)) +
+    ylab(colnames(myxcol)) +
+    ggtitle(mytitle) 
+}
+
+scatter_plot(geo_chemical_data, aTiO2_pct, Th_ppm, "scatterplot")
+```
+
+# Correlations 
+
+```{r Correlation matrix}
+# correlations between variables
+round(cor(geo_chemical_data),3) # large matrix
+```
+
+```{r fig.height = 12, fig.width = 12}
+
+# save correlation matrix as a variable
+chem_cor_matrix <- round(cor(geo_chemical_data),3)
+# order the correlations from strongest to weakest
+chem_cor_matrix_all <- chem_cor_matrix %>%
+  as.data.frame() %>%
+  mutate(var1 = rownames(.)) %>%
+  gather(var2, value, -var1) %>%
+  arrange(desc(value)) %>%
+  group_by(value) %>%
+  filter(row_number() == 1.000) 
+
+# the 'strong' > 0.85 correlations in the DF are they related? there are no correlations < -0.85
+strong_chem_cor_neg <- chem_cor_matrix_all %>%  filter(value < -0.80) # high correlation limit declared
+strong_chem_cor_pos <- chem_cor_matrix_all %>%  filter(value > 0.85) # high correlation limit declared
+
+chem_cor_df <- strong_chem_cor_pos %>% as.matrix(rownames.force = TRUE) %>% as_data_frame
+new_strong_cor <- chem_cor_df %>% dplyr::rename(Correlation_r = "value")
+new_strong_cor
+# from n=64 now there are n=32
+new_chem <- new_DF[colnames(new_DF) %in% c(chem_cor_df$var1,chem_cor_df$var2)]
+#names(new_chem)
+```
+
+NOTE: build plots based on big pair plots
+
+
+```{r Strong correlation plots}
+
+```
+
+
+```{r Correlation plot, fig.height = 15, fig.width = 12}
+ggcorr(new_DF, label=T,digits=2,low="pink",mid="steelblue",high="seagreen",label_alpha = TRUE, nbreaks = 10)
+corrplot(cor(new_DF))
+```
+
+NOTES:
+
+Bold blue = strongly correlated (positive) ~0.8
+
+Bold red = strongly correlated (negative) ~ -0.8
+
+select strong correlations between main elements and strong correlations between main/trace elements.
+
+# Hierarchial Clustering
+
+```{r cluster functions}
+# Hierarchial functions
+
+set.seed(22598448) # for reproducibility
+# FUNCTION Hierarchial clustering with three distance measures
+Hierachial_cluster <- function(DF,distance_method,linkage_method,K,plot_title){
+  
+  # scale DF, already scaled? select condition 
+  DF <- DF %>% dplyr::select_if(is.numeric) %>% as.data.frame #%>% scale
+  # distance matrix # hclust & linkage method
+  hclust_method<-hclust(dist(DF,method =distance_method),method=linkage_method)
+  # dendogram
+  dendogram <- as.dendrogram(hclust_method)
+  # plot the dendrogram with color-coded groups
+  col_dendogram <- color_branches(dendogram, h = max(hclust_method$height),k=K,lwd=2)
+  plot(col_dendogram, lwd = 2, main = plot_title)
+  # plot clusters
+  abline(h = max(hclust_method$height), col = 'green', lwd = 2)
+  hclust_method
+}
+```
+
+### Transposing of the dataframe 
+
+NOTE: won't work with NA's
+
+```{r}
+transposed_DF <- data.frame(t(geo_chemical_data))
+
+# Hierachial clustering with k=1,...9 for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(transposed_DF),"manhattan","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with k=1,...9 for MANHATTAN distance & SIN== linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(transposed_DF),"manhattan","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with k=1,...9 for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(transposed_DF),"manhattan","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+
+
+```{r}
+transposed_DF <- data.frame(t(geo_chemical_data))
+t_chemical_scaled <- as_tibble(scale(transposed_DF))
+
+# Hierachial clustering with k=1,...9 for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(t_chemical_scaled),"euclidean","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with k=1,...9 for MANHATTAN distance & SINGLE= linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(t_chemical_scaled),"euclidean","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with k=1,...9 for MANHATTAN distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(t_chemical_scaled),"euclidean","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+
+### Scaled, no NA's
+
+```{r}
+chemical_scaled <- as_tibble(scale(geo_chemical_data))
+
+# Hierachial clustering for euclidean distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(chemical_scaled),"euclidean","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for euclidean distance & SINGLE= linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(chemical_scaled),"euclidean","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for euclidean distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(chemical_scaled),"euclidean","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(transposed_DF),"manhattan","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & single linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(transposed_DF),"manhattan","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for MANHATTAN distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(transposed_DF),"manhattan","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+### Unscaled data, no NA's
+
+```{r}
+chemical_scaled <- as_tibble(scale(geo_chemical_data))
+
+# Hierachial clustering for euclidean distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"euclidean","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for euclidean distance & SINGLE= linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"euclidean","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for euclidean distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"euclidean","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"manhattan","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & single linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"manhattan","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for MANHATTAN distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"manhattan","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+### unscaled data
+
+```{r}
+chemical_scaled <- as_tibble(scale(geo_chemical_data))
+
+# Hierachial clustering for euclidean distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"euclidean","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for euclidean distance & SINGLE= linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"euclidean","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for euclidean distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"euclidean","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"manhattan","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & single linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"manhattan","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for MANHATTAN distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(na.omit(geo_chemical_data),"manhattan","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+### unscaled data, imputed zero's inplace of NA's
+
+```{r}
+
+# Hierachial clustering for euclidean distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(geochemistry_zeros,"euclidean","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for euclidean distance & SINGLE= linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(geochemistry_zeros,"euclidean","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for euclidean distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(geochemistry_zeros,"euclidean","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(geochemistry_zeros,"manhattan","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & single linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(geochemistry_zeros,"manhattan","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for MANHATTAN distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(geochemistry_zeros,"manhattan","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+### scaled data, imputed zero's inplace of NA's
+
+```{r}
+
+# Hierachial clustering for euclidean distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(as_tibble(scale(geochemistry_zeros)),"euclidean","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for euclidean distance & SINGLE= linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(as_tibble(scale(geochemistry_zeros)),"euclidean","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for euclidean distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(as_tibble(scale(geochemistry_zeros)),"euclidean","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & COMPLETE linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(as_tibble(scale(geochemistry_zeros)),"manhattan","complete",K=i,"Cluster dendogram: complete and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with  for MANHATTAN distance & single linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(as_tibble(scale(geochemistry_zeros)),"manhattan","single",K=i,"Cluster dendogram: single and manhattan distance")
+  hc_mc
+}
+
+# Hierachial clustering with for MANHATTAN distance & average linkage
+for (i in 2:3){
+  hc_mc <-Hierachial_cluster(as_tibble(scale(geochemistry_zeros))\,"manhattan","average",K=i,"Cluster dendogram: average and manhattan distance")
+  hc_mc
+}
+```
+
+
+
+
+
+
+
+
